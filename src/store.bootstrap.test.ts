@@ -199,6 +199,75 @@ describe("desktop account bootstrap", () => {
     expect(useStore.getState().scheduledRuns.map((run) => run.id)).toEqual(["qa-schedule"]);
   });
 
+  it("restores editable private scripts after sign-out", async () => {
+    const script = {
+      id: "qa-script", title: "Private QA script", domain: "", instructions: "Do nothing",
+      createdAt: 1, updatedAt: 2, serverSlug: "private-qa-script",
+    };
+    const skill = {
+      id: "qa-skill", title: "Private QA skill", domain: "example.com", task: "Open example.com",
+      instructions: "Open example.com", actions: [], capability: "navigation",
+      parametersSchema: { type: "object", properties: {} }, outputSchema: { type: "object", properties: {} },
+      recipe: { version: 1, capability: "navigation", actions: [] }, createdAt: 1, updatedAt: 2,
+    };
+    const appData: Record<string, string> = {
+      "custom-scripts.json": JSON.stringify([script]),
+      "local-skills.json": JSON.stringify([skill]),
+    };
+    mockDesktop(true, { appData });
+    localStorage.setItem("cachedAccountOwnerId", "owner-1");
+    const { useStore } = await import("./store");
+    useStore.setState({ syncProjects: vi.fn().mockResolvedValue(undefined) });
+
+    await useStore.getState().bootstrap();
+    await useStore.getState().logout();
+    expect(useStore.getState().customScripts).toEqual([]);
+    await useStore.getState().login("qa-key");
+    expect(useStore.getState().customScripts.map((item) => item.title)).toEqual(["Private QA script"]);
+    expect(useStore.getState().localSkills.map((item) => item.title)).toEqual(["Private QA skill"]);
+
+    const archive = JSON.parse(appData["authored-content-by-account.json"]);
+    expect(archive["owner-1"].scripts).toHaveLength(1);
+    expect(archive["owner-1"].skills).toHaveLength(1);
+    expect(archive["owner-2"]).toBeUndefined();
+  });
+
+  it("does not restore another account's editable scripts or workflow skills", async () => {
+    const appData = {
+      "authored-content-by-account.json": JSON.stringify({
+        "owner-1": {
+          scripts: [{ id: "foreign-script", title: "Private", domain: "", instructions: "Do nothing", createdAt: 1, updatedAt: 1 }],
+          skills: [{ id: "foreign-skill", title: "Private skill", instructions: "Do nothing", createdAt: 1, updatedAt: 1 }],
+        },
+      }),
+    };
+    mockDesktop(true, { ownerId: "owner-2", appData });
+    const { useStore } = await import("./store");
+
+    await useStore.getState().bootstrap();
+    expect(useStore.getState().customScripts).toEqual([]);
+    expect(useStore.getState().localSkills).toEqual([]);
+  });
+
+  it("does not resurrect a deleted script on a same-account restart", async () => {
+    mockDesktop(true, {
+      appData: {
+        "custom-scripts.json": "[]",
+        "authored-content-by-account.json": JSON.stringify({
+          "owner-1": {
+            scripts: [{ id: "deleted-script", title: "Deleted", domain: "", instructions: "Do nothing", createdAt: 1, updatedAt: 1 }],
+            skills: [],
+          },
+        }),
+      },
+    });
+    localStorage.setItem("cachedAccountOwnerId", "owner-1");
+    const { useStore } = await import("./store");
+
+    await useStore.getState().bootstrap();
+    expect(useStore.getState().customScripts).toEqual([]);
+  });
+
   it("does not restore another account's archived schedules", async () => {
     const appData = {
       "scheduled-runs-by-account.json": JSON.stringify({
