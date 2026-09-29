@@ -1308,17 +1308,19 @@ export function Sidebar({ onOpenAgentSettings, onHome }: SidebarProps) {
               </button>
               {workspaceMenuOpen && (
                 <div className="workspace-menu">
-                  {s.workspaces.map((workspace) => (
-                    <button
-                      key={workspace.id}
-                      className={workspace.id === s.activeWorkspaceId ? "active" : ""}
-                      title={workspace.name}
-                      onClick={() => { setProfileActionError(null); s.selectWorkspace(workspace.id); setWorkspaceMenuOpen(false); }}
-                    >
-                      <Icon name={workspace.id === s.activeWorkspaceId ? "checkmark" : "square.grid.2x2"} size={11} />
-                      <span>{workspace.name}</span>
-                    </button>
-                  ))}
+                  <div className="workspace-menu-list">
+                    {s.workspaces.map((workspace) => (
+                      <button
+                        key={workspace.id}
+                        className={workspace.id === s.activeWorkspaceId ? "active" : ""}
+                        title={workspace.name}
+                        onClick={() => { setProfileActionError(null); s.selectWorkspace(workspace.id); setWorkspaceMenuOpen(false); }}
+                      >
+                        <Icon name={workspace.id === s.activeWorkspaceId ? "checkmark" : "square.grid.2x2"} size={11} />
+                        <span>{workspace.name}</span>
+                      </button>
+                    ))}
+                  </div>
                   {activeWorkspace && <button className="workspace-delete-action" onClick={() => {
                     setWorkspaceMenuOpen(false);
                     setWorkspaceDeleteError(null);
