@@ -99,7 +99,14 @@ the only thing that ever touches the actual secret.
   attempt), re-identify the current form on the page rather than continuing to act on a form
   that no longer exists.
 - If a captcha or bot check appears, stop and report `captcha_required`; do not attempt to
-  solve it.
+  solve it. This holds even if someone clears the check while the run is in progress: the
+  run still ends as `captcha_required`, and the report says that a person cleared it.
+- Some identity providers put a step between the username and the password. Microsoft may
+  offer to email a sign-in code before showing a password field, and may ask "Stay signed
+  in?" after the credentials are accepted. Neither is an MFA challenge and neither is a
+  "save password" popup. Treat a code-first page as `mfa_required` unless a password option
+  is already on screen, and treat a "stay signed in?" prompt as a user decision: do not
+  answer it, and report the outcome reached up to that point.
 - Never log, echo, screenshot-caption, or otherwise repeat the actual password, master
   password, or MFA code in any response, tool call, or intermediate reasoning shown to the
   user.
@@ -113,8 +120,17 @@ the only thing that ever touches the actual secret.
 
 ## Completion
 
-State the final outcome plainly, using one of: `filled_and_submitted`, `filled_only`,
-`multiple_matches`, `vault_locked`, `mfa_required`, `no_login_form_found`,
-`autofill_failed`, or `captcha_required`. Name the site and what was attempted. Never
-include the credential values, master password, or MFA code in the final answer, even in
-redacted or partial form.
+State the final outcome as exactly one of these eight names, spelled as written here:
+`filled_and_submitted`, `filled_only`, `multiple_matches`, `vault_locked`,
+`mfa_required`, `no_login_form_found`, `autofill_failed`, `captcha_required`.
+
+Do not invent a name, and do not substitute a word that reads more naturally for the
+situation in front of you. A completed and verified sign-in is `filled_and_submitted`;
+there is no separate "signed in" outcome. If none of the eight is a clean fit, choose the
+closest one and say in plain words why it is approximate, rather than reaching for a
+ninth name.
+
+Name the site and what was attempted. If a person did anything during the run, say so and
+say exactly what they did: the outcome describes what the skill achieved on its own, not
+what the page eventually reached with help. Never include the credential values, master
+password, or MFA code in the final answer, even in redacted or partial form.
