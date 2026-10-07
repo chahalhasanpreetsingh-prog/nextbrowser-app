@@ -1,6 +1,6 @@
 ---
 name: lastpass-autofill-login-firefox
-description: Autofill a saved LastPass login into the currently focused sign-in form in Firefox using the LastPass browser extension's native in-field icon, instead of typing, guessing, or reconstructing credentials or MFA codes. Use when a user asks to log in, sign in to, or fill saved credentials into a website with LastPass in Firefox, including when the vault turns out to be locked or the site requires a second factor.
+description: Autofill a saved LastPass login into the currently focused sign-in form in a Firefox (Camoufox) profile using the LastPass browser extension's native in-field icon, instead of typing, guessing, or reconstructing credentials or MFA codes. Use when a user asks to log in, sign in to, or fill saved credentials into a website with LastPass in a Camoufox or Firefox profile, including when the vault turns out to be locked or the site requires a second factor.
 ---
 
 # LastPass Autofill Login (Firefox)
@@ -39,13 +39,12 @@ the only thing that ever touches the actual secret.
    on its own. If the username and password fields already show non-empty values, LastPass
    found exactly one confident match and filled it with no click required; proceed to step 4.
    - If the fields are still empty, or you need to rule out more than one saved match before
-     trusting a fill, click the LastPass icon to read what it shows. The icon does not resolve
-     as an ordinary clickable element: it renders inside a closed shadow root anchored to a
-     zero-size container at the right-hand edge of the field, invisible to element-based
-     selectors. Click it by screen position (the right-hand inner edge of the field,
-     vertically centered) rather than by resolving an element handle — this is exactly what a
-     person clicks by eye in a real browser, and a real agent in a real browser session can do
-     the same.
+     trusting a fill, look for LastPass's match list. Do not try to click the LastPass icon
+     itself: it renders inside a closed shadow root anchored to a zero-size container at the
+     right-hand edge of the field, so element-based clicks cannot reach it, and coordinate
+     clicks are not available on Camoufox profiles. Instead click into the username or email
+     field as an ordinary page element, wait about two seconds, and take a screenshot. Read
+     the list from the screenshot when LastPass shows one under the field.
    - **Exactly one item listed**, matching what's already in the form (or the field still
      empty with a single item offered) — this is a normal single match. Proceed.
    - **More than one item listed** — LastPass does not hold back or ask on its own when
@@ -61,18 +60,17 @@ the only thing that ever touches the actual secret.
      Either way, this step was already confirmed to be a real login form, so report
      `autofill_failed`, not `no_login_form_found`.
    - **The vault itself is locked or logged out** — the icon in the field renders grey
-     instead of red, the form stays empty with no fill attempt at all, and clicking the icon
-     opens a "LastPass - Sign In" tab instead of any item list. Treat this as `vault_locked`;
-     see step 5. Never interact with that sign-in tab.
-   - **The icon cannot be activated at all** (for example, position-based clicking is not
-     available in the current environment) — do not fail the run on that account. Report
-     whatever outcome the field state alone supports: filled with one confident match, or
-     empty. Note plainly that `multiple_matches` may be undetectable under this condition —
-     an honest limit of inspecting field state without the match list, not a silent gap.
+     instead of red in the screenshot, and the form stays empty with no fill attempt at all.
+     Treat this as `vault_locked`; see step 5. If a "LastPass - Sign In" tab opens, never
+     interact with it.
+   - **No LastPass list appears in the screenshot** — do not fail the run on that account.
+     Report whatever outcome the field state alone supports: filled with one confident
+     match, or empty. Say plainly that `multiple_matches` could not be checked, because
+     LastPass fills one of several matches silently and only its list shows the others.
 4. If exactly one item matched and the form is now filled, verify the values look like
    credentials (masked password, non-empty username) before doing anything else.
-5. If the vault is locked or logged out (grey field icon, no fill, a "LastPass - Sign In" tab
-   on click), or LastPass itself demands a second factor to unlock (not the destination
+5. If the vault is locked or logged out (grey field icon, no fill, or a "LastPass - Sign In"
+   tab), or LastPass itself demands a second factor to unlock (not the destination
    site), do not attempt to unlock it yourself under any circumstances: never type a
    candidate master password or login into the LastPass sign-in tab, never attempt a "forgot
    password" or reset flow on the user's behalf, and never accept a master password as an
@@ -92,9 +90,10 @@ the only thing that ever touches the actual secret.
 
 ## Recovery
 
-- If no autofill happened and the icon shows a single matching item without filling the
-  form, click that item once to fill explicitly. If the fields still do not populate, report
-  `autofill_failed` — do not fall back to typing credentials manually.
+- If no autofill happened and the list shows a single matching item without filling the
+  form, ask the user to click that item in LastPass's list once, since the agent cannot
+  click inside it, and re-check the fields after they confirm. If the fields still do not
+  populate, report `autofill_failed` — do not fall back to typing credentials manually.
 - If the page navigates or the form is replaced mid-flow (e.g. a redirect after a failed
   attempt), re-identify the current form on the page rather than continuing to act on a form
   that no longer exists.
@@ -104,9 +103,10 @@ the only thing that ever touches the actual secret.
 - Some identity providers put a step between the username and the password. Microsoft may
   offer to email a sign-in code before showing a password field, and may ask "Stay signed
   in?" after the credentials are accepted. Neither is an MFA challenge and neither is a
-  "save password" popup. Treat a code-first page as `mfa_required` unless a password option
-  is already on screen, and treat a "stay signed in?" prompt as a user decision: do not
-  answer it, and report the outcome reached up to that point.
+  "save password" popup. On a code-first page, click its visible "Use your password" option
+  once when it exists; otherwise report `mfa_required`. On "Stay signed in?", answer No
+  unless the user asked to stay signed in, report the choice, and continue to the
+  signed-in check.
 - Never log, echo, screenshot-caption, or otherwise repeat the actual password, master
   password, or MFA code in any response, tool call, or intermediate reasoning shown to the
   user.
