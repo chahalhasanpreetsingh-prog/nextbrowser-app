@@ -127,6 +127,7 @@ export function UsageView() {
   const [handoffLoading, setHandoffLoading] = useState(false);
   const [handoffNotice, setHandoffNotice] = useState<string>();
   const [handoffInviteSent, setHandoffInviteSent] = useState(false);
+  const [handoffInviteEmail, setHandoffInviteEmail] = useState<string>();
   const [handoffInviteUnavailable, setHandoffInviteUnavailable] = useState(false);
   const gateState = trafficGateState(s.proxy);
   // A GitHub sign-up lifts its limit with a star, which replaces the Discord ask.
@@ -138,6 +139,7 @@ export function UsageView() {
   }, [githubStar, loadGitHubStar]);
   useEffect(() => {
     setHandoffInviteSent(false);
+    setHandoffInviteEmail(undefined);
     setHandoffInviteUnavailable(false);
     setHandoffNotice(undefined);
   }, [s.proxy?.provider_account_email, s.authed]);
@@ -250,8 +252,9 @@ export function UsageView() {
     try {
       const result = await invoke<{ email: string; expiresInDays: number }>("nodemaven_send_invite");
       setHandoffInviteSent(true);
+      setHandoffInviteEmail(result.email);
       setHandoffInviteUnavailable(false);
-      setHandoffNotice(`NodeMaven sent a password setup link to ${result.email}. It expires in ${result.expiresInDays} days. After setting your password, sign in to NodeMaven to buy traffic.`);
+      setHandoffNotice(`The password setup link expires in ${result.expiresInDays} days.`);
       trackEvent("nodemaven_invite_sent", { proxy_state: s.proxy.state });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not send the NodeMaven email. Try again.";
@@ -358,7 +361,7 @@ export function UsageView() {
                 </div>
                 <p className="muted small">
                   New accounts pause after the first few dozen megabytes so we can meet the
-                  people using NextBrowser. Say hi in Discord and we unlock the rest of your
+                  people using Nextbrowser. Say hi in Discord and we unlock the rest of your
                   allowance by hand — feedback, repo stars, and pull requests earn more.
                 </p>
                 <button
@@ -377,7 +380,7 @@ export function UsageView() {
                   <Icon name={proxyExhausted ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"} size={18} />
                   <div>
                     <strong>{gateState === "blocked" ? "NodeMaven dashboard access" : proxyExhausted
-                      ? dashboardReady ? "Proxy traffic has run out" : "Your free 1 GB has been used"
+                      ? dashboardReady || s.proxy.legacy_migrated ? "Proxy traffic has run out" : "Your free 1 GB has been used"
                       : "Your NodeMaven account is ready"}</strong>
                     <p>
                       {gateState === "blocked" ? "Your dashboard remains available. Contact support about the paused proxy allowance before continuing browser work."
@@ -387,11 +390,23 @@ export function UsageView() {
                           : "Buy more traffic in NodeMaven to continue. We'll email you a link to set your password. Your proxy credentials stay the same."
                         : dashboardReady
                           ? "Your NodeMaven dashboard is ready whenever you need more traffic."
-                          : "Your free 1 GB is active. When you need more, we'll email you a link to set up your NodeMaven account."}
+                          : s.proxy.legacy_migrated
+                            ? "Your previous traffic balance is available. When it runs out, we'll email you a link to set up your NodeMaven account."
+                            : "Your free 1 GB is active. When you need more, we'll email you a link to set up your NodeMaven account."}
                     </p>
                     {s.proxy.provider_account_email && <span>NodeMaven account: {s.proxy.provider_account_email}</span>}
                   </div>
                 </div>
+                {dashboardReady && (
+                  <div className="nodemaven-account-email" role="status">
+                    <strong>We've prepared your NodeMaven account</strong>
+                    <p>
+                      A link to set your password has been sent to{" "}
+                      <strong>{handoffInviteEmail || s.proxy.provider_account_email || "your email address"}</strong>.
+                      {" "}Check your inbox and spam folder, set your password, then sign in to NodeMaven to buy traffic.
+                    </p>
+                  </div>
+                )}
                 <div className="nodemaven-handoff-actions">
                   {dashboardReady && isTrustedNodeMavenURL(s.proxy.dashboard_url) && (
                     <button className="btn-bordered" disabled={handoffLoading} type="button" onClick={() => void openNodeMaven("dashboard")}>

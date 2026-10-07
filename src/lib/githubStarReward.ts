@@ -4,13 +4,19 @@ import { humanBytes } from "../types";
  * The GitHub star reward, as the main process reads it from the backend.
  *
  * An account that signed in with GitHub starts with a tiny proxy limit. It is
- * asked to star the NextBrowser repository; the backend checks the star and
+ * asked to star the Nextbrowser repository; the backend checks the star and
  * raises the limit to `rewardBytes`, once. `required` is true while the
  * account is still below the reward and has not claimed it.
+ *
+ * The reward lasts while the star does. Removing it freezes the limit at the
+ * traffic already spent and the status turns `revoked` (still `required`, no
+ * longer `claimed`); starring again and checking restores it, usage kept.
  */
 export interface GitHubStarStatus {
   required: boolean;
   claimed: boolean;
+  /** The star was removed after the reward was claimed. */
+  revoked: boolean;
   repoUrl: string;
   rewardBytes: number;
 }
